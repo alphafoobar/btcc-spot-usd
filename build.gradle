@@ -29,8 +29,9 @@ repositories {
 dependencies {
     def guavaVersion = '23.0'
 
-    compile fileTree(dir: 'libs', include: 'btcc-fix44-messages-1.2.jar')
+//    compile fileTree(dir: 'libs', include: 'btcc-fix44-messages-1.2.jar')
     compile group: 'org.quickfixj', name: 'quickfixj-core', version: '1.6.4'
+    compile group: 'org.quickfixj', name: 'quickfixj-messages-fix44', version: '1.6.4'
     compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.1.11'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     compile group: 'commons-codec', name: 'commons-codec', version: '1.10'

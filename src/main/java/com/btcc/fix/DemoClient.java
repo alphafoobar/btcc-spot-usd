@@ -1,168 +1,186 @@
 package com.btcc.fix;
 
-import java.io.UnsupportedEncodingException;
+import static quickfix.field.MDEntryType.BID;
+import static quickfix.field.MDEntryType.OFFER;
+import static quickfix.field.MDEntryType.TRADE;
+import static quickfix.field.MDEntryType.TRADE_VOLUME;
+
 import java.util.UUID;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.codec.digest.HmacUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import quickfix.ApplicationAdapter;
-import quickfix.DataDictionary;
+import quickfix.ConfigError;
 import quickfix.FieldNotFound;
 import quickfix.IncorrectDataFormat;
 import quickfix.IncorrectTagValue;
-import quickfix.Initiator;
 import quickfix.MemoryStoreFactory;
 import quickfix.Message;
 import quickfix.MessageFactory;
 import quickfix.MessageStoreFactory;
+import quickfix.RejectLogon;
 import quickfix.Session;
 import quickfix.SessionID;
 import quickfix.SessionSettings;
 import quickfix.SocketInitiator;
 import quickfix.UnsupportedMessageType;
-import quickfix.btcc.AccountInfoRequest;
-import quickfix.field.AccReqID;
-import quickfix.field.Account;
+import quickfix.field.MDEntryType;
+import quickfix.field.MDReqID;
+import quickfix.field.MarketDepth;
+import quickfix.field.SubscriptionRequestType;
+import quickfix.field.Symbol;
+import quickfix.fix44.MarketDataRequest;
+import quickfix.fix44.MarketDataRequest.NoMDEntryTypes;
+import quickfix.fix44.MarketDataSnapshotFullRefresh;
+import quickfix.mina.initiator.AbstractSocketInitiator;
 
 public class DemoClient {
 
     private static final Logger logger = LoggerFactory.getLogger(DemoClient.class);
-    private static final String ACCESS_KEY = "";
-    private static final String SECRET_KEY = "";
 
-    private static class Params {
+    private final MyApplicationAdapter applicationAdapter = new MyApplicationAdapter();
+    private final AbstractSocketInitiator initiator;
 
-        public String tonce = "" + (System.currentTimeMillis() * 1000);
-        public String accesskey;
-        public String requestmethod = "post";
-        public String id = "1";
-        public String method = "getForwardsAccountInfo";
-        public String params = "";
-
-        @Override
-        public String toString() {
-            return String.format("tonce=%s&accesskey=%s&requestmethod=%s&id=%s&method=%s&params=%s",
-                tonce, accesskey, requestmethod, id, method, params);
-        }
-
-        public Params(String accesskey) {
-            this.accesskey = accesskey;
-        }
+    private DemoClient() throws ConfigError {
+        initiator = getThreadedSocketInitiator();
     }
 
-    public static String generateAccountString(String accessKey, String secretKey) {
-        Params params = new Params(accessKey);
-        String hash = HmacUtils.hmacSha1Hex(secretKey, params.toString());
-        String userpass = accessKey + ":" + hash;
-        String basicAuth = "Basic " + getBase64EncodedPass(userpass);
-        return params.tonce + ":" + basicAuth;
-    }
-
-    private static String getBase64EncodedPass(String userpass) {
-        String charsetName = "UTF-8";
-        try {
-            return Base64.encodeBase64String(userpass.getBytes(charsetName));
-        } catch (UnsupportedEncodingException e) {
-            logger.error("Unsupported encoding [charset={}]", charsetName, e);
-        }
-        return "";
-    }
 
     public static void main(String[] args) throws Exception {
-        SessionSettings settings = new SessionSettings("quickfix-client.properties");
-        MessageFactory messageFactory = new quickfix.btcc.MessageFactory();
-        MessageStoreFactory messageStoreFactory = new MemoryStoreFactory();
-
-        DataDictionary dd = new DataDictionary("BTCC-FIX44.xml");
-
-        Initiator initiator = new SocketInitiator(new ApplicationAdapter() {
-            @Override
-            public void onLogon(SessionID sessionId) {
-
-                // 请求账户信息
-                AccountInfoRequest request = new AccountInfoRequest();
-                request.set(new AccReqID(UUID.randomUUID().toString()));
-                request.set(new Account(generateAccountString(ACCESS_KEY, SECRET_KEY)));
-
-                // 请求市场数据
-//                MarketDataRequest request = new MarketDataRequest();
-//                request.set(new MDReqID(UUID.randomUUID().toString()));
-//                request.set(new SubscriptionRequestType(SubscriptionRequestType.SNAPSHOT));
-//                request.set(new MarketDepth(5));
-////
-//                MarketDataRequest.NoRelatedSym symbolGroup = new MarketDataRequest.NoRelatedSym();
-//                symbolGroup.set(new Symbol("BTCUSD"));
-//                request.addGroup(symbolGroup);
-//
-//                MarketDataRequest.NoMDEntryTypes typeGroup1 = new MarketDataRequest.NoMDEntryTypes();
-//                typeGroup1.set(new MDEntryType(MDEntryType.BID));
-//                request.addGroup(typeGroup1);
-//
-//                MarketDataRequest.NoMDEntryTypes typeGroup2 = new MarketDataRequest.NoMDEntryTypes();
-//                typeGroup2.set(new MDEntryType(MDEntryType.OFFER));
-//                request.addGroup(typeGroup2);
-
-                // 下单
-//                NewOrderSingle request = new NewOrderSingle();
-//                request.set(new ClOrdID(UUID.randomUUID().toString()));
-//                request.set(new Side(Side.BUY));
-//                request.set(new TransactTime());
-//                request.set(new OrdType(OrdType.MARKET));
-//                request.set(new Account(generateAccountString(ACCESS_KEY, SECRET_KEY)));
-//                request.set(new OrderQty(new BigDecimal("1")));
-//                request.set(new Symbol("BTCUSD"));
-
-                // 查询单笔订单状态
-//                OrderStatusRequest request = new OrderStatusRequest();
-//                request.set(new ClOrdID(UUID.randomUUID().toString()));
-//                request.set(new Side(Side.BUY));
-//                request.set(new Symbol("BTCUSD"));
-//                request.set(new OrderID("Your Order ID"));
-//                request.set(new Account(generateAccountString(ACCESS_KEY, SECRET_KEY)));
-
-                // 查询多笔订单状态（过去一天中的新建订单）
-//                OrderMassStatusRequest2 request = new OrderMassStatusRequest2();
-//                request.set(new MassStatusReqID(UUID.randomUUID().toString()));
-//                request.set(new Symbol("BTCUSD"));
-//                request.set(new Account(generateAccountString(ACCESS_KEY, SECRET_KEY)));
-//                request.set(new StartTime(new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000)));
-//                request.set(new EndTime(new Date()));
-//
-//                OrderMassStatusRequest2.NoStatuses statusGroup = new OrderMassStatusRequest2.NoStatuses();
-//                statusGroup.set(new OrdStatus(OrdStatus.NEW));
-//                request.addGroup(statusGroup);
-
-                // 修改订单
-//                OrderCancelReplaceRequest request = new OrderCancelReplaceRequest();
-//                request.set(new ClOrdID(UUID.randomUUID().toString()));
-//                request.set(new OrderID("Your Order ID"));
-//                request.set(new Account(generateAccountString(ACCESS_KEY, SECRET_KEY)));
-//                request.set(new Symbol("BTCUSD"));
-//                request.set(new Price(new BigDecimal("4000")));
-//                request.set(new OrderQty(new BigDecimal("2"))); // 期望修改成的数量
-//                request.set(new OrderQty2(new BigDecimal("1"))); // 原来的数量
-
-                // 取消订单
-//                OrderCancelRequest request = new OrderCancelRequest();
-//                request.set(new ClOrdID(UUID.randomUUID().toString()));
-//                request.set(new Side(Side.BUY));
-//                request.set(new TransactTime());
-//                request.set(new OrderID("Your Order ID"));
-//                request.set(new Account(generateAccountString(ACCESS_KEY, SECRET_KEY)));
-//                request.set(new Symbol("BTCUSD"));
-
-                Session.lookupSession(sessionId).send(request);
-            }
-
-            @Override
-            public void fromApp(Message message, SessionID sessionId)
-                throws FieldNotFound, IncorrectDataFormat, IncorrectTagValue, UnsupportedMessageType {
-                FixMessagePrinter.print(dd, message);
-            }
-        }, messageStoreFactory, settings, messageFactory);
-
-        initiator.block();
+        new DemoClient().run();
     }
 
+    private void run() throws InterruptedException {
+        execute(initiator);
+
+        while (!initiator.isLoggedOn()) {
+            synchronized (initiator) {
+                logger.info("+++ Waiting for logon");
+                initiator.wait(100);
+            }
+        }
+
+        applicationAdapter.sendMessage();
+
+        while (initiator.isLoggedOn()) {
+            synchronized (initiator) {
+                initiator.wait(1000);
+            }
+        }
+
+        logger.info("??? Logged off !!");
+    }
+
+    private AbstractSocketInitiator getThreadedSocketInitiator() throws ConfigError {
+        SessionSettings settings = new SessionSettings("quickfix-client.properties");
+        MessageFactory messageFactory = new quickfix.fix44.MessageFactory();
+        MessageStoreFactory messageStoreFactory = new MemoryStoreFactory();
+
+        return new SocketInitiator(applicationAdapter,
+            messageStoreFactory,
+            settings, messageFactory);
+    }
+
+    private static AbstractSocketInitiator execute(final AbstractSocketInitiator initiator) {
+        try {
+
+            initiator.start();
+
+            return initiator;
+        } catch (ConfigError e) {
+            logger.error("error = {}", e, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static MarketDataRequest getMarketDataRequest(String... symbols) {
+        // 请求市场数据
+        MarketDataRequest request = new MarketDataRequest();
+        request.set(new MDReqID(UUID.randomUUID().toString()));
+        request.set(new SubscriptionRequestType(SubscriptionRequestType.SNAPSHOT_PLUS_UPDATES));
+        request.set(new MarketDepth(0));
+////
+        for (String symbol : symbols) {
+            MarketDataRequest.NoRelatedSym symbolGroup = new MarketDataRequest.NoRelatedSym();
+            symbolGroup.set(new Symbol(symbol));
+            request.addGroup(symbolGroup);
+        }
+
+        addType(request, BID);
+        addType(request, OFFER);
+        addType(request, TRADE);
+        addType(request, TRADE_VOLUME);
+        return request;
+    }
+
+    private static void addType(MarketDataRequest request, char type) {
+        NoMDEntryTypes mdEntryTypes = new NoMDEntryTypes();
+        mdEntryTypes.set(new MDEntryType(type));
+        request.addGroup(mdEntryTypes);
+    }
+
+    private static class MyApplicationAdapter extends ApplicationAdapter {
+
+        private volatile SessionID sessionId;
+
+        MyApplicationAdapter() {
+            sessionId = null;
+        }
+
+        @Override
+        public void onLogon(SessionID sessionId) {
+            this.sessionId = sessionId;
+            logger.info("Logged in [session={}]", sessionId);
+        }
+
+        @Override
+        public void fromApp(Message message, SessionID sessionId)
+            throws FieldNotFound, IncorrectDataFormat, IncorrectTagValue, UnsupportedMessageType {
+//            logger.info("Received fromApp:{}", message.toString());
+
+            if (message instanceof MarketDataSnapshotFullRefresh) {
+                MarketDataSnapshotFullRefresh marketDataSnapshot = (MarketDataSnapshotFullRefresh) message;
+                logger.info(
+                    "MarketData received for [symbol={}, bid={}, offer={}, last-trade={}, 24-hour-volume={}]",
+                    marketDataSnapshot.get(new Symbol()),
+                    getField(marketDataSnapshot, MDEntryType.BID),
+                    getField(marketDataSnapshot, MDEntryType.OFFER),
+                    getField(marketDataSnapshot, MDEntryType.TRADE),
+                    getField(marketDataSnapshot, MDEntryType.TRADE_VOLUME));
+            }
+        }
+
+        private String getField(MarketDataSnapshotFullRefresh marketDataSnapshot, char type)
+            throws FieldNotFound {
+            MarketDataSnapshotFullRefresh.NoMDEntries mdEntries = new MarketDataSnapshotFullRefresh.NoMDEntries();
+            for (int i = 1; i <= marketDataSnapshot.getNoMDEntries().getValue(); i++) {
+                MarketDataSnapshotFullRefresh.NoMDEntries entry = (MarketDataSnapshotFullRefresh.NoMDEntries) marketDataSnapshot
+                    .getGroup(i, mdEntries);
+                if (entry.getChar(MDEntryType.FIELD) == type) {
+                    return "" + entry.getMDEntryPx().getValue();
+                }
+
+            }
+            return "NOT-FOUND";
+        }
+
+        @Override
+        public void toApp(Message message, SessionID sessionId) {
+            logger
+                .info("Sending toApp:{}", message.toString().replaceAll("\\x01", "|"));
+        }
+
+        @Override
+        public void fromAdmin(Message message, SessionID sessionId)
+            throws FieldNotFound, IncorrectDataFormat, IncorrectTagValue, RejectLogon {
+            logger
+                .info("Received fromAdmin:{}", message.toString().replaceAll("\\x01", "|"));
+        }
+
+        public void sendMessage() {
+            MarketDataRequest request = getMarketDataRequest("BTCUSD");
+            logger
+                .info("Sending message:{}", request.toString().replaceAll("\\x01", "|"));
+            Session.lookupSession(sessionId).send(request);
+        }
+    }
 }
