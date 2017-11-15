@@ -1,23 +1,38 @@
 package com.btcc.fix;
 
+import java.io.UnsupportedEncodingException;
+import java.util.UUID;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.HmacUtils;
-import quickfix.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import quickfix.ApplicationAdapter;
+import quickfix.DataDictionary;
+import quickfix.FieldNotFound;
+import quickfix.IncorrectDataFormat;
+import quickfix.IncorrectTagValue;
+import quickfix.Initiator;
+import quickfix.MemoryStoreFactory;
 import quickfix.Message;
 import quickfix.MessageFactory;
-import quickfix.btcc.*;
-import quickfix.field.*;
-
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.UUID;
+import quickfix.MessageStoreFactory;
+import quickfix.Session;
+import quickfix.SessionID;
+import quickfix.SessionSettings;
+import quickfix.SocketInitiator;
+import quickfix.UnsupportedMessageType;
+import quickfix.btcc.AccountInfoRequest;
+import quickfix.field.AccReqID;
+import quickfix.field.Account;
 
 public class DemoClient {
 
+    private static final Logger logger = LoggerFactory.getLogger(DemoClient.class);
     private static final String ACCESS_KEY = "";
     private static final String SECRET_KEY = "";
 
     private static class Params {
+
         public String tonce = "" + (System.currentTimeMillis() * 1000);
         public String accesskey;
         public String requestmethod = "post";
@@ -28,7 +43,7 @@ public class DemoClient {
         @Override
         public String toString() {
             return String.format("tonce=%s&accesskey=%s&requestmethod=%s&id=%s&method=%s&params=%s",
-                    tonce, accesskey, requestmethod, id, method, params);
+                tonce, accesskey, requestmethod, id, method, params);
         }
 
         public Params(String accesskey) {
@@ -40,8 +55,18 @@ public class DemoClient {
         Params params = new Params(accessKey);
         String hash = HmacUtils.hmacSha1Hex(secretKey, params.toString());
         String userpass = accessKey + ":" + hash;
-        String basicAuth = "Basic " + Base64.encodeBase64String(userpass.getBytes());
+        String basicAuth = "Basic " + getBase64EncodedPass(userpass);
         return params.tonce + ":" + basicAuth;
+    }
+
+    private static String getBase64EncodedPass(String userpass) {
+        String charsetName = "UTF-8";
+        try {
+            return Base64.encodeBase64String(userpass.getBytes(charsetName));
+        } catch (UnsupportedEncodingException e) {
+            logger.error("Unsupported encoding [charset={}]", charsetName, e);
+        }
+        return "";
     }
 
     public static void main(String[] args) throws Exception {
@@ -59,7 +84,6 @@ public class DemoClient {
                 AccountInfoRequest request = new AccountInfoRequest();
                 request.set(new AccReqID(UUID.randomUUID().toString()));
                 request.set(new Account(generateAccountString(ACCESS_KEY, SECRET_KEY)));
-
 
                 // 请求市场数据
 //                MarketDataRequest request = new MarketDataRequest();
@@ -132,11 +156,11 @@ public class DemoClient {
             }
 
             @Override
-            public void fromApp(Message message, SessionID sessionId) throws FieldNotFound, IncorrectDataFormat, IncorrectTagValue, UnsupportedMessageType {
+            public void fromApp(Message message, SessionID sessionId)
+                throws FieldNotFound, IncorrectDataFormat, IncorrectTagValue, UnsupportedMessageType {
                 FixMessagePrinter.print(dd, message);
             }
         }, messageStoreFactory, settings, messageFactory);
-
 
         initiator.block();
     }

@@ -1,0 +1,56 @@
+import com.github.spotbugs.SpotBugsTask
+
+version '0.0.1-SNAPSHOT'
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+
+    dependencies {
+        classpath "gradle.plugin.com.github.spotbugs:gradlePlugin:1.6.0"
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'jacoco'
+apply plugin: "com.github.spotbugs"
+apply plugin: 'checkstyle'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    def guavaVersion = '23.0'
+
+    compile fileTree(dir: 'libs', include: 'btcc-fix44-messages-1.2.jar')
+    compile group: 'org.quickfixj', name: 'quickfixj-core', version: '1.6.4'
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.1.11'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    compile group: 'commons-codec', name: 'commons-codec', version: '1.10'
+    compile group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '3.1.0'
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: 'org.mockito', name: 'mockito-core', version: '2.11.0'
+    testCompile 'org.hamcrest:hamcrest-junit:2.0.0.0'
+    testCompile group: 'com.google.guava', name: 'guava-testlib', version: guavaVersion
+}
+
+tasks.withType(SpotBugsTask) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+        html.stylesheet resources.text.fromFile('config/spotbugs/plain.xsl')
+    }
+}
+
+checkstyle {
+    configFile rootProject.file('config/checkstyle/checkstyle.xml')
+    toolVersion = "7.6.1"
+}

@@ -1,9 +1,13 @@
 package com.btcc.fix;
 
-import quickfix.*;
-import quickfix.field.MsgType;
-
 import java.util.Iterator;
+import quickfix.DataDictionary;
+import quickfix.Field;
+import quickfix.FieldMap;
+import quickfix.FieldNotFound;
+import quickfix.FieldType;
+import quickfix.Message;
+import quickfix.field.MsgType;
 
 public class FixMessagePrinter {
 
@@ -64,6 +68,6 @@ public class FixMessagePrinter {
     }
 
     private static boolean isGroupCountField(DataDictionary dd, Field field) {
-        return dd.getFieldTypeEnum(field.getTag()) == FieldType.NumInGroup;
+        return dd.getFieldType(field.getTag()) == FieldType.NUMINGROUP;
     }
 }
